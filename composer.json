@@ -1,0 +1,54 @@
+{
+    "name": "mohamed-ayman/laravel-postman-generator",
+    "description": "Professional Laravel package to automatically generate Postman collections from your Laravel routes, controllers, validation rules, and middleware",
+    "type": "library",
+    "keywords": [
+        "laravel",
+        "postman",
+        "api",
+        "documentation",
+        "collection",
+        "routes",
+        "validation",
+        "middleware"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mohamed Ayman",
+            "email": "devel.mohamed.ayman@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/routing": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "illuminate/validation": "^11.0|^12.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MohamedAyman\\LaravelPostmanGenerator\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MohamedAyman\\LaravelPostmanGenerator\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "MohamedAyman\\LaravelPostmanGenerator\\LaravelPostmanGeneratorServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
+
