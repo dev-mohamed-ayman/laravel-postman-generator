@@ -85,7 +85,7 @@ class RouteScanner
 
         $middleware = $route->middleware();
         $uri = $route->uri();
-        
+
         // Check for API routes
         if (in_array('api', $includeRoutes)) {
             // Check if route has 'api' middleware or starts with 'api/'
@@ -130,13 +130,6 @@ class RouteScanner
             ];
         }
 
-        if (is_callable($controller)) {
-            return [
-                'class' => get_class($controller[0] ?? $controller),
-                'method' => $controller[1] ?? '__invoke',
-            ];
-        }
-
         return null;
     }
 
@@ -146,7 +139,7 @@ class RouteScanner
     protected function extractRouteParameters(string $uri): array
     {
         $parameters = [];
-        
+
         if (preg_match_all('/\{(\w+)\}/', $uri, $matches)) {
             $parameters = $matches[1];
         }
@@ -154,4 +147,3 @@ class RouteScanner
         return $parameters;
     }
 }
-

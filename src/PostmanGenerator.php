@@ -63,16 +63,9 @@ class PostmanGenerator
         $controller = $route['controller'] ?? null;
         $action = $route['action'] ?? null;
 
-        // Generate a better name for the request
-        $name = $route['name'] ?? $route['uri'];
-        if (empty($name) || $name === $route['uri']) {
-            // Try to create a readable name from URI
-            $uriParts = explode('/', trim($route['uri'], '/'));
-            $name = ucfirst(end($uriParts));
-            if (empty($name)) {
-                $name = $route['method'] . ' ' . $route['uri'];
-            }
-        }
+        // Generate a better, descriptive name for the request
+        $name = $this->generateRequestName($route);
+        $description = $this->generateRequestDescription($route);
 
         $item = [
             'name' => $name,
@@ -87,14 +80,10 @@ class PostmanGenerator
                     })),
                 ],
                 'body' => [],
+                'description' => $description,
             ],
             'response' => [],
         ];
-
-        // Add description if route has name
-        if (!empty($route['name'])) {
-            $item['request']['description'] = "Route: {$route['name']}";
-        }
 
         // Extract controller information
         $controllerClass = null;
@@ -283,5 +272,186 @@ class PostmanGenerator
     public function updateViaApi(array $collection, array $options = []): bool
     {
         return $this->apiClient->updateCollection($collection, $options);
+    }
+
+    /**
+     * Generate a descriptive name for the request
+     */
+    protected function generateRequestName(array $route): string
+    {
+        $method = $route['method'];
+        $uri = $route['uri'];
+        $routeName = $route['name'] ?? null;
+        $action = $route['action'] ?? null;
+
+        // Parse URI to extract resource and action
+        $uriParts = array_filter(explode('/', trim($uri, '/')));
+        $uriParts = array_values($uriParts);
+
+        // Remove 'api' prefix if exists
+        if (!empty($uriParts) && strtolower($uriParts[0]) === 'api') {
+            $uriParts = array_slice($uriParts, 1);
+        }
+
+        // Map HTTP methods to action words
+        $methodActions = [
+            'GET' => 'Get',
+            'POST' => 'Create',
+            'PUT' => 'Update',
+            'PATCH' => 'Update',
+            'DELETE' => 'Delete',
+        ];
+
+        $actionWord = $methodActions[$method] ?? $method;
+
+        if (empty($uriParts)) {
+            return "{$actionWord} Root";
+        }
+
+        // Handle different route patterns
+        if (count($uriParts) === 1) {
+            // Single resource: /users or /user
+            $resource = $this->singularize(ucfirst($uriParts[0]));
+
+            // Check if it's singular (like /user) vs plural (like /users)
+            $isPlural = str_ends_with(strtolower($uriParts[0]), 's');
+
+            if ($method === 'GET') {
+                if ($isPlural) {
+                    return "Get All {$resource}s";
+                } else {
+                    return "Get Current {$resource}";
+                }
+            } elseif ($method === 'POST') {
+                return "Create {$resource}";
+            }
+            return "{$actionWord} {$resource}";
+        } elseif (count($uriParts) >= 2) {
+            $lastPart = end($uriParts);
+            $firstPart = $uriParts[0];
+
+            // Check if last part is a parameter (e.g., {id})
+            if (preg_match('/\{(\w+)\}/', $lastPart, $matches)) {
+                // Pattern: /users/{id} or /user/{id}
+                $resource = $this->singularize(ucfirst($firstPart));
+                $param = ucfirst($matches[1]);
+
+                if ($method === 'GET') {
+                    return "Get {$resource} by {$param}";
+                } elseif ($method === 'PUT' || $method === 'PATCH') {
+                    return "Update {$resource}";
+                } elseif ($method === 'DELETE') {
+                    return "Delete {$resource}";
+                }
+            } else {
+                // Check if it's a nested resource: /users/{id}/posts
+                if (count($uriParts) >= 3 && preg_match('/\{(\w+)\}/', $uriParts[1])) {
+                    $parentResource = $this->singularize(ucfirst($firstPart));
+                    $resource = $this->singularize(ucfirst($lastPart));
+
+                    if ($method === 'GET') {
+                        return "Get {$resource}s for {$parentResource}";
+                    } elseif ($method === 'POST') {
+                        return "Create {$resource} for {$parentResource}";
+                    }
+                } else {
+                    // Pattern: /users/posts or simple nested
+                    $resource = $this->singularize(ucfirst($lastPart));
+                    $parentResource = $this->singularize(ucfirst($firstPart));
+
+                    if ($method === 'GET') {
+                        return "Get {$resource}s";
+                    } elseif ($method === 'POST') {
+                        return "Create {$resource}";
+                    }
+                }
+            }
+        }
+
+        // Use route name if available and better
+        if ($routeName) {
+            $name = str_replace(['.', '-', '_'], ' ', $routeName);
+            $name = ucwords($name);
+            // Only use if it's more descriptive
+            if (strlen($name) > 5) {
+                return $name;
+            }
+        }
+
+        // Fallback: use controller method if available
+        if ($action && isset($action['method']) && $action['method'] !== '__invoke') {
+            $methodName = $action['method'];
+            $methodName = str_replace(['_', '-'], ' ', $methodName);
+            $methodName = ucwords($methodName);
+            return "{$actionWord} {$methodName}";
+        }
+
+        // Final fallback
+        $resource = $this->singularize(ucfirst(end($uriParts)));
+        return "{$actionWord} {$resource}";
+    }
+
+    /**
+     * Convert plural to singular (simple version)
+     */
+    protected function singularize(string $word): string
+    {
+        // Simple plural to singular conversion
+        if (str_ends_with($word, 'ies')) {
+            return substr($word, 0, -3) . 'y';
+        } elseif (str_ends_with($word, 'es') && strlen($word) > 3) {
+            return substr($word, 0, -2);
+        } elseif (str_ends_with($word, 's') && strlen($word) > 1) {
+            return substr($word, 0, -1);
+        }
+        return $word;
+    }
+
+    /**
+     * Generate a descriptive description for the request
+     */
+    protected function generateRequestDescription(array $route): string
+    {
+        $method = $route['method'];
+        $uri = $route['uri'];
+        $routeName = $route['name'] ?? null;
+        $action = $route['action'] ?? null;
+
+        $description = "**{$method}** `{$uri}`\n\n";
+
+        if ($routeName) {
+            $description .= "Route name: `{$routeName}`\n\n";
+        }
+
+        // Add method description
+        $methodDescriptions = [
+            'GET' => 'Retrieves data from the server.',
+            'POST' => 'Creates a new resource on the server.',
+            'PUT' => 'Updates an existing resource (full update).',
+            'PATCH' => 'Updates an existing resource (partial update).',
+            'DELETE' => 'Deletes a resource from the server.',
+        ];
+
+        if (isset($methodDescriptions[$method])) {
+            $description .= $methodDescriptions[$method] . "\n\n";
+        }
+
+        // Add controller info if available
+        if ($action && isset($action['class']) && isset($action['method'])) {
+            $controller = class_basename($action['class']);
+            $description .= "Controller: `{$controller}::{$action['method']}()`\n\n";
+        }
+
+        // Add middleware info
+        if (!empty($route['middleware'])) {
+            $middleware = array_filter($route['middleware'], function ($m) {
+                return !in_array($m, ['web', 'api']);
+            });
+            if (!empty($middleware)) {
+                $description .= "Middleware: " . implode(', ', $middleware) . "\n";
+            }
+        }
+
+        return trim($description);
     }
 }
