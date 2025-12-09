@@ -13,6 +13,11 @@
         "middleware"
     ],
     "license": "MIT",
+    "homepage": "https://github.com/dev-mohamed-ayman/laravel-postman-generator",
+    "support": {
+        "issues": "https://github.com/dev-mohamed-ayman/laravel-postman-generator/issues",
+        "source": "https://github.com/dev-mohamed-ayman/laravel-postman-generator"
+    },
     "authors": [
         {
             "name": "Mohamed Ayman",

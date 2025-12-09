@@ -3,6 +3,8 @@
 [![Latest Version](https://img.shields.io/packagist/v/mohamed-ayman/laravel-postman-generator.svg?style=flat-square)](https://packagist.org/packages/mohamed-ayman/laravel-postman-generator)
 [![Total Downloads](https://img.shields.io/packagist/dt/mohamed-ayman/laravel-postman-generator.svg?style=flat-square)](https://packagist.org/packages/mohamed-ayman/laravel-postman-generator)
 [![License](https://img.shields.io/packagist/l/mohamed-ayman/laravel-postman-generator.svg?style=flat-square)](https://packagist.org/packages/mohamed-ayman/laravel-postman-generator)
+[![GitHub Stars](https://img.shields.io/github/stars/dev-mohamed-ayman/laravel-postman-generator.svg?style=flat-square)](https://github.com/dev-mohamed-ayman/laravel-postman-generator)
+[![GitHub Forks](https://img.shields.io/github/forks/dev-mohamed-ayman/laravel-postman-generator.svg?style=flat-square)](https://github.com/dev-mohamed-ayman/laravel-postman-generator)
 
 A professional Laravel package that automatically generates Postman collections from your Laravel routes, controllers, validation rules, and middleware. This package scans your entire Laravel project and creates a complete Postman collection with all the necessary information.
 
@@ -293,7 +295,11 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 
 ## Support
 
-If you encounter any issues or have questions, please open an issue on GitHub.
+If you encounter any issues or have questions, please open an issue on [GitHub](https://github.com/dev-mohamed-ayman/laravel-postman-generator/issues).
+
+## Repository
+
+[GitHub Repository](https://github.com/dev-mohamed-ayman/laravel-postman-generator)
 
 ## Changelog
 
