@@ -4,6 +4,7 @@ namespace MohamedAyman\LaravelPostmanGenerator\Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Log;
 
 class PostmanApiClient
@@ -14,7 +15,7 @@ class PostmanApiClient
 
     public function __construct()
     {
-        $this->apiKey = config('postman-generator.postman.api_key', '');
+        $this->apiKey = (string) (config('postman-generator.postman.api_key') ?? '');
         $this->client = new Client([
             'base_uri' => $this->baseUrl,
             'headers' => [
@@ -35,7 +36,7 @@ class PostmanApiClient
         }
 
         $collectionId = $options['collection_id'] ?? config('postman-generator.postman.collection_id');
-        
+
         if (empty($collectionId)) {
             Log::warning('Postman collection ID is not configured');
             return false;
@@ -46,9 +47,26 @@ class PostmanApiClient
                 'json' => [
                     'collection' => $collection,
                 ],
+                'timeout' => 30,
             ]);
 
-            return $response->getStatusCode() === 200;
+            $statusCode = $response->getStatusCode();
+
+            if ($statusCode === 200) {
+                return true;
+            }
+
+            Log::warning("Postman API returned status code: {$statusCode}");
+            return false;
+        } catch (RequestException $e) {
+            $errorMessage = $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $body = $response->getBody()->getContents();
+                $errorMessage .= ' - Response: ' . $body;
+            }
+            Log::error('Failed to update Postman collection: ' . $errorMessage);
+            return false;
         } catch (GuzzleException $e) {
             Log::error('Failed to update Postman collection: ' . $e->getMessage());
             return false;
@@ -81,8 +99,17 @@ class PostmanApiClient
             ]);
 
             $data = json_decode($response->getBody()->getContents(), true);
-            
+
             return $data['collection']['uid'] ?? null;
+        } catch (RequestException $e) {
+            $errorMessage = $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $body = $response->getBody()->getContents();
+                $errorMessage .= ' - Response: ' . $body;
+            }
+            Log::error('Failed to create Postman collection: ' . $errorMessage);
+            return null;
         } catch (GuzzleException $e) {
             Log::error('Failed to create Postman collection: ' . $e->getMessage());
             return null;
@@ -101,12 +128,20 @@ class PostmanApiClient
         try {
             $response = $this->client->get("/collections/{$collectionId}");
             $data = json_decode($response->getBody()->getContents(), true);
-            
+
             return $data['collection'] ?? null;
+        } catch (RequestException $e) {
+            $errorMessage = $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $body = $response->getBody()->getContents();
+                $errorMessage .= ' - Response: ' . $body;
+            }
+            Log::error('Failed to get Postman collection: ' . $errorMessage);
+            return null;
         } catch (GuzzleException $e) {
             Log::error('Failed to get Postman collection: ' . $e->getMessage());
             return null;
         }
     }
 }
-

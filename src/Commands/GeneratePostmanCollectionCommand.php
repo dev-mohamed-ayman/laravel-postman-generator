@@ -44,15 +44,31 @@ class GeneratePostmanCollectionCommand extends Command
         ];
 
         $this->info('📋 Scanning routes...');
-        $collection = $generator->generate($options);
+        
+        try {
+            $collection = $generator->generate($options);
+            
+            $routeCount = count($collection['item'] ?? []);
+            $this->info("   Found {$routeCount} route group(s)");
+        } catch (\Exception $e) {
+            $this->error("❌ Error generating collection: " . $e->getMessage());
+            return Command::FAILURE;
+        }
 
         $this->info('💾 Saving collection to file...');
         $outputPath = $options['output_path'];
         
-        if ($generator->saveToFile($collection, $outputPath)) {
-            $this->info("✅ Collection saved successfully to: {$outputPath}");
-        } else {
-            $this->error("❌ Failed to save collection to: {$outputPath}");
+        try {
+            if ($generator->saveToFile($collection, $outputPath)) {
+                $fileSize = filesize($outputPath);
+                $fileSizeFormatted = $this->formatBytes($fileSize);
+                $this->info("✅ Collection saved successfully to: {$outputPath} ({$fileSizeFormatted})");
+            } else {
+                $this->error("❌ Failed to save collection to: {$outputPath}");
+                return Command::FAILURE;
+            }
+        } catch (\Exception $e) {
+            $this->error("❌ Error saving file: " . $e->getMessage());
             return Command::FAILURE;
         }
 
@@ -74,6 +90,20 @@ class GeneratePostmanCollectionCommand extends Command
         $this->info('✨ Done!');
         
         return Command::SUCCESS;
+    }
+
+    /**
+     * Format bytes to human readable format
+     */
+    protected function formatBytes(int $bytes, int $precision = 2): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, $precision) . ' ' . $units[$i];
     }
 }
 

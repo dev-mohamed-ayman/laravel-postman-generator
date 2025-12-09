@@ -79,18 +79,27 @@ class RouteScanner
      */
     protected function shouldIncludeRoute($route, array $includeRoutes): bool
     {
-        if (in_array('all', $includeRoutes)) {
+        if (empty($includeRoutes) || in_array('all', $includeRoutes)) {
             return true;
         }
 
         $middleware = $route->middleware();
+        $uri = $route->uri();
         
-        if (in_array('api', $includeRoutes) && in_array('api', $middleware)) {
-            return true;
+        // Check for API routes
+        if (in_array('api', $includeRoutes)) {
+            // Check if route has 'api' middleware or starts with 'api/'
+            if (in_array('api', $middleware) || str_starts_with($uri, 'api/')) {
+                return true;
+            }
         }
 
-        if (in_array('web', $includeRoutes) && !in_array('api', $middleware)) {
-            return true;
+        // Check for web routes
+        if (in_array('web', $includeRoutes)) {
+            // Web routes typically don't have 'api' middleware and don't start with 'api/'
+            if (!in_array('api', $middleware) && !str_starts_with($uri, 'api/')) {
+                return true;
+            }
         }
 
         return false;

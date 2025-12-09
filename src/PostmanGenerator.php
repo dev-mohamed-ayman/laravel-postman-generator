@@ -63,20 +63,38 @@ class PostmanGenerator
         $controller = $route['controller'] ?? null;
         $action = $route['action'] ?? null;
 
+        // Generate a better name for the request
+        $name = $route['name'] ?? $route['uri'];
+        if (empty($name) || $name === $route['uri']) {
+            // Try to create a readable name from URI
+            $uriParts = explode('/', trim($route['uri'], '/'));
+            $name = ucfirst(end($uriParts));
+            if (empty($name)) {
+                $name = $route['method'] . ' ' . $route['uri'];
+            }
+        }
+
         $item = [
-            'name' => $route['name'] ?? $route['uri'],
+            'name' => $name,
             'request' => [
                 'method' => $route['method'],
                 'header' => [],
                 'url' => [
                     'raw' => '{{base_url}}' . $route['uri'],
                     'host' => ['{{base_url}}'],
-                    'path' => array_filter(explode('/', trim($route['uri'], '/'))),
+                    'path' => array_values(array_filter(explode('/', trim($route['uri'], '/')), function ($segment) {
+                        return !empty($segment);
+                    })),
                 ],
                 'body' => [],
             ],
             'response' => [],
         ];
+
+        // Add description if route has name
+        if (!empty($route['name'])) {
+            $item['request']['description'] = "Route: {$route['name']}";
+        }
 
         // Extract controller information
         $controllerClass = null;
@@ -119,14 +137,18 @@ class PostmanGenerator
             $item['request']['header'] = array_merge($item['request']['header'], $middlewareData['headers']);
         }
 
-        // Add default headers
+        // Add default headers (avoid duplicates)
         $defaultHeaders = config('postman-generator.default_headers', []);
+        $existingHeaderKeys = array_column($item['request']['header'], 'key');
+
         foreach ($defaultHeaders as $key => $value) {
-            $item['request']['header'][] = [
-                'key' => $key,
-                'value' => $value,
-                'type' => 'text',
-            ];
+            if (!in_array($key, $existingHeaderKeys)) {
+                $item['request']['header'][] = [
+                    'key' => $key,
+                    'value' => $value,
+                    'type' => 'text',
+                ];
+            }
         }
 
         // Handle route parameters
@@ -169,32 +191,60 @@ class PostmanGenerator
             $rules = explode('|', $rules);
         }
 
+        if (!is_array($rules)) {
+            return '';
+        }
+
         $example = null;
+        $isRequired = false;
 
         foreach ($rules as $rule) {
+            $rule = trim($rule);
+
             if (str_starts_with($rule, 'required')) {
-                // Field is required
+                $isRequired = true;
             } elseif (str_starts_with($rule, 'email')) {
                 $example = 'example@email.com';
             } elseif (str_starts_with($rule, 'numeric')) {
-                $example = 0;
+                $example = $example ?? 0;
             } elseif (str_starts_with($rule, 'integer')) {
-                $example = 1;
+                $example = $example ?? 1;
             } elseif (str_starts_with($rule, 'string')) {
-                $example = 'string';
+                $example = $example ?? 'string';
             } elseif (str_starts_with($rule, 'boolean')) {
                 $example = true;
             } elseif (str_starts_with($rule, 'array')) {
                 $example = [];
             } elseif (str_starts_with($rule, 'date')) {
                 $example = now()->toDateString();
+            } elseif (str_starts_with($rule, 'url')) {
+                $example = 'https://example.com';
+            } elseif (str_starts_with($rule, 'ip')) {
+                $example = '192.168.1.1';
+            } elseif (str_starts_with($rule, 'json')) {
+                $example = '{"key": "value"}';
             } elseif (preg_match('/min:(\d+)/', $rule, $matches)) {
                 if (is_numeric($example)) {
                     $example = (int) $matches[1];
+                } elseif (is_string($example)) {
+                    $example = str_repeat('a', (int) $matches[1]);
                 }
             } elseif (preg_match('/max:(\d+)/', $rule, $matches)) {
-                // Keep current example
+                // Keep current example but respect max
+                if (is_string($example) && strlen($example) > (int) $matches[1]) {
+                    $example = substr($example, 0, (int) $matches[1]);
+                }
+            } elseif (preg_match('/in:(.+)/', $rule, $matches)) {
+                $values = explode(',', $matches[1]);
+                $example = trim($values[0] ?? '');
+            } elseif (preg_match('/size:(\d+)/', $rule, $matches)) {
+                $example = str_repeat('a', (int) $matches[1]);
             }
+        }
+
+        // If no example found and field is required, provide a default
+        if ($example === null && $isRequired) {
+            $example = 'required_value';
         }
 
         return $example ?? '';
@@ -207,12 +257,24 @@ class PostmanGenerator
     {
         $path = $path ?? config('postman-generator.output_path');
 
-        $directory = dirname($path);
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (empty($path)) {
+            return false;
         }
 
-        return file_put_contents($path, json_encode($collection, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) !== false;
+        $directory = dirname($path);
+        if (!is_dir($directory)) {
+            if (!mkdir($directory, 0755, true) && !is_dir($directory)) {
+                return false;
+            }
+        }
+
+        $json = json_encode($collection, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            return false;
+        }
+
+        return file_put_contents($path, $json) !== false;
     }
 
     /**

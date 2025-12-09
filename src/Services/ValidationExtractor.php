@@ -50,10 +50,32 @@ class ValidationExtractor
             // Try to get rules from rules() method
             if ($reflection->hasMethod('rules')) {
                 $rulesMethod = $reflection->getMethod('rules');
-                $rulesMethod->setAccessible(true);
                 
-                $instance = $reflection->newInstanceWithoutConstructor();
-                $rules = $rulesMethod->invoke($instance);
+                // Check if method is static
+                if ($rulesMethod->isStatic()) {
+                    $rules = $rulesMethod->invoke(null);
+                } else {
+                    $rulesMethod->setAccessible(true);
+                    try {
+                        $instance = $reflection->newInstanceWithoutConstructor();
+                        $rules = $rulesMethod->invoke($instance);
+                    } catch (\Exception $e) {
+                        // If we can't create instance, try to get rules from parent class
+                        $parent = $reflection->getParentClass();
+                        if ($parent && $parent->hasMethod('rules')) {
+                            $parentRulesMethod = $parent->getMethod('rules');
+                            $parentRulesMethod->setAccessible(true);
+                            try {
+                                $parentInstance = $parent->newInstanceWithoutConstructor();
+                                $rules = $parentRulesMethod->invoke($parentInstance);
+                            } catch (\Exception $e2) {
+                                return [];
+                            }
+                        } else {
+                            return [];
+                        }
+                    }
+                }
                 
                 if (is_array($rules)) {
                     return $this->normalizeRules($rules);

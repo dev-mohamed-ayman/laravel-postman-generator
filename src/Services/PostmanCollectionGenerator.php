@@ -51,8 +51,13 @@ class PostmanCollectionGenerator
         foreach ($items as $item) {
             $path = $item['request']['url']['path'] ?? [];
             
+            // Filter out empty path segments
+            $path = array_filter($path, function($segment) {
+                return !empty($segment) && $segment !== '{' && !str_starts_with($segment, '{');
+            });
+            
             if (count($path) > 1) {
-                // Has folder structure
+                // Has folder structure - use first segment as folder name
                 $folderName = ucfirst($path[0]);
                 
                 if (!isset($groups[$folderName])) {
@@ -63,10 +68,20 @@ class PostmanCollectionGenerator
                 }
                 
                 // Update path to remove first segment
-                $newPath = array_slice($path, 1);
+                $newPath = array_values(array_slice($path, 1));
                 $item['request']['url']['path'] = $newPath;
-                $pathString = !empty($newPath) ? '/' . implode('/', $newPath) : '';
+                
+                // Rebuild raw URL
+                $pathString = '';
+                if (!empty($newPath)) {
+                    $pathString = '/' . implode('/', $newPath);
+                }
                 $item['request']['url']['raw'] = '{{base_url}}' . $pathString;
+                
+                // Update host if needed
+                if (!isset($item['request']['url']['host']) || empty($item['request']['url']['host'])) {
+                    $item['request']['url']['host'] = ['{{base_url}}'];
+                }
                 
                 $groups[$folderName]['item'][] = $item;
             } else {

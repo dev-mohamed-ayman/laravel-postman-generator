@@ -43,11 +43,40 @@ A professional Laravel package that automatically generates Postman collections 
 
 ## Installation
 
-You can install the package via Composer:
+### From Packagist (After Publishing)
+
+Once the package is published on Packagist, you can install it via Composer:
 
 ```bash
 composer require mohamed-ayman/laravel-postman-generator
 ```
+
+### From GitHub (Before Publishing)
+
+If the package is not yet on Packagist, add the GitHub repository to your `composer.json`:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/dev-mohamed-ayman/laravel-postman-generator"
+        }
+    ],
+    "require": {
+        "mohamed-ayman/laravel-postman-generator": "^1.0"
+    }
+}
+```
+
+Then run:
+```bash
+composer require mohamed-ayman/laravel-postman-generator
+```
+
+### Troubleshooting
+
+If you encounter security advisories or installation issues, see [INSTALLATION_TROUBLESHOOTING.md](INSTALLATION_TROUBLESHOOTING.md) for solutions.
 
 The package will automatically register its service provider.
 
